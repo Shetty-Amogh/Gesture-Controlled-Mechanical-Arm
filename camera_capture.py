@@ -16,8 +16,9 @@ pinkyOrg = (10, 190)
 color = (0, 0, 0)  
 font_scale = 1
 thickness = 4
+calibration_mode = True
 
-ideal = [0.40, 0.35, 0.40, 0.50]  
+ideal_ratio = [[0,0,0],[0,0,0],[0,0,0],[0,0,0]]  
 
 good = False
 
@@ -47,17 +48,17 @@ HAND_CONNECTIONS = [
 
 # ---------------- Hand landmark drawing function -----------------
 
-def draw_landmarks(image, landmarks):
+def draw_landmarks(image, landmarks, r,g,b):
     h, w = image.shape[:2]
     for landmark in landmarks:
         x, y = int(landmark.x * w), int(landmark.y * h)
-        cv2.circle(image, (x, y), 5, (0, 255, 0), -1)
+        cv2.circle(image, (x, y), 5, (r, g, b), -1)
     
     for connection in HAND_CONNECTIONS:
         start = landmarks[connection[0]]
         end = landmarks[connection[1]]
         cv2.line(image, (int(start.x*w), int(start.y*h)), 
-                (int(end.x*w), int(end.y*h)), (0, 255, 0), 2)
+                (int(end.x*w), int(end.y*h)), (r, g, b), 2)
 
 # ------------------- Initialize timestamp counter -------------------
 timestamp_ms = 0
@@ -93,7 +94,7 @@ while cap.isOpened():
         for i, hand_landmarks in enumerate(results.hand_landmarks):
             hand_type = results.handedness[i][0].category_name 
             if hand_type == "Right":
-                draw_landmarks(image, hand_landmarks)
+                draw_landmarks(image, hand_landmarks,0,255,0)
 
     
 
@@ -107,13 +108,17 @@ while cap.isOpened():
             # Thumb detection
             thumb_extended = 0
             if hand_type == "Right":
-                thumb_extended = 1 if landmarks[4].x < landmarks[3].x else 0
+                right_thumb_extended = 1 if landmarks[4].x < landmarks[3].x else 0
             else: 
-                thumb_extended = 1 if landmarks[4].x > landmarks[3].x else 0    
+                left_thumb_extended = 1 if landmarks[4].x > landmarks[3].x else 0    
 
             # Finger detection
-            finger_state = [0, 0, 0, 0, 0]
-            finger_state[0] = thumb_extended
+            if hand_type == "Right":
+                finger_state_right = [0, 0, 0, 0, 0]
+                finger_state_right[0] = right_thumb_extended
+            if hand_type == "Left":
+                finger_state_left = [0, 0, 0, 0, 0]
+                finger_state_left[0] = left_thumb_extended
 
             tips = [8, 12, 16, 20]
             bases = [5, 9, 13, 17]
@@ -121,28 +126,51 @@ while cap.isOpened():
             upper_tips = [7, 11, 15, 19]
 
             for i in range(4):
-                if landmarks[tips[i]].y > landmarks[bases[i]].y:
-                    finger_state[i+1] = 1
-                else : 
-                    finger_state[i+1] = (landmarks[tips[i]].y/landmarks[bases[i]].y) 
+                if hand_type == "Left":
+                    if landmarks[tips[i]].y < landmarks[bases[i]].y:
+                        finger_state_left [i+1] = 0
+                    else : 
+                        finger_state_left[i+1] = 1
+                else:    
+                    if landmarks[tips[i]].y > landmarks[bases[i]].y:
+                        finger_state_right [i+1] = 1
+                    else : 
+                        finger_state_right[i+1] = (landmarks[tips[i]].y/landmarks[bases[i]].y) 
 
-            if (landmarks[tips[0]].y <landmarks[tips[1]].y or landmarks[tips[2]].y < landmarks[tips[1]].y) and finger_state[1] < 0.5 and finger_state[2] < 0.5 and finger_state[3] < 0.5 and finger_state[4] < 0.5:
-                if hand_type == "Right":
-                    cv2.putText(image, f"please Straighten your hand", org, 
-                    font, font_scale, color, thickness)
-            else :
-                if hand_type == "Right":
-                    cv2.putText(image, f"good to go!", org, 
-                    font, font_scale, color, thickness)
-                    cv2.putText(image, f"Index Finger: {finger_state[1]:.2f}", indexOrg, 
-                    font, font_scale, color, thickness)
-                    cv2.putText(image, f"Middle Finger: {finger_state[2]:.2f}", middleOrg, 
-                    font, font_scale, color, thickness)
-                    cv2.putText(image, f"Ring Finger: {finger_state[3] :.2f}", ringOrg, 
-                    font, font_scale, color, thickness)
-                    cv2.putText(image, f"Pinky Finger: {finger_state[4]:.2f}", pinkyOrg, 
-                    font, font_scale, color, thickness)
-                    
+            #-------------------- calibration ---------------------
+            
+            if calibration_mode == True:
+                cv2.putText(image, f"Calibration Mode", org, 
+                        font, font_scale, color, thickness)
+                
+                if(hand_type == "Right"):
+                    draw_landmarks(image, hand_landmarks,255,0,0)
+
+                if(hand_type == "Left"):
+                    draw_landmarks(image, hand_landmarks,0,0,255)
+                    print(finger_state_left)
+                    if(finger_state_left[0] == 1 and finger_state_left[1] == 1 and finger_state_left[2] == 1 and finger_state_left[3] == 1 and finger_state_left[4] == 1):
+                        calibration_mode = False
+                        print("Calibration complete. Starting main mode.")
+
+
+            #---------------------- run mode ----------------------
+            if calibration_mode == False:
+                if (landmarks[tips[0]].y <landmarks[tips[1]].y or landmarks[tips[2]].y < landmarks[tips[1]].y) and finger_state_right[1] < 0.5 and finger_state_right[2] < 0.5 and finger_state_right[3] < 0.5 and finger_state_right[4] < 0.5:
+                    if hand_type == "Right":
+                        cv2.putText(image, f"please Straighten your hand", org, 
+                        font, font_scale, color, thickness)
+                else :
+                    if hand_type == "Right":
+                        cv2.putText(image, f"good to go!", org, 
+                        font, font_scale, color, thickness)
+                        cv2.putText(image, f"Index Finger Y: {landmarks[tips[0]].y:.2f}", indexOrg, 
+                        font, font_scale, color, thickness)
+                        cv2.putText(image, f"Index Finger X: {landmarks[tips[0]].x:.2f}", middleOrg, 
+                        font, font_scale, color, thickness)
+
+            
+            
 
             
     
