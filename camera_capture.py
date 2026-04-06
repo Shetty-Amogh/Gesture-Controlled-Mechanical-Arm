@@ -35,6 +35,12 @@ options = HandLandmarkerOptions(
 detector = HandLandmarker.create_from_options(options)
 
 cap = cv2.VideoCapture(0)
+# ------------------get hand----------------
+def get_hand(): 
+        print(results.handedness)
+        # for i in enumerate(results.hand_landmarks):
+        #     hand_type = results.handedness[i][0].category_name
+        # return hand_type
 
 #  ---------------- Hand connection indices -----------------
 HAND_CONNECTIONS = [
@@ -45,6 +51,18 @@ HAND_CONNECTIONS = [
     (0,17),(17,18),(18,19),(19,20),
     (5,9),(9,13),(13,17)
 ]
+
+
+# ---------------- Saving ideal ratios function -----------------
+def save():
+    hand = results.handedness[0][0].category_name
+    if(hand == "Right"):
+        for i in range(4):
+            if hand== "Right":
+                ideal_ratio[i][0] = landmarks[tips[i]].y/landmarks[bases[i]].y
+                ideal_ratio[i][1] = landmarks[lower_tips[i]].y/landmarks[bases[i]].y
+                ideal_ratio[i][2] = landmarks[upper_tips[i]].y/landmarks[bases[i]].y
+                print("values savwd")
 
 # ---------------- Hand landmark drawing function -----------------
 
@@ -63,17 +81,17 @@ def draw_landmarks(image, landmarks, r,g,b):
 # ------------------- Initialize timestamp counter -------------------
 timestamp_ms = 0
 
-def get_hand_type(hand_landmarks, image_width, image_height):
-    # Normalize landmarks to image coordinates
-    thumb_tip = hand_landmarks[4]  # Thumb tip (landmark 4)
-    wrist = hand_landmarks[0]      # Wrist (landmark 0)
+# def get_hand_type(hand_landmarks, image_width, image_height):
+#     # Normalize landmarks to image coordinates
+#     thumb_tip = hand_landmarks[4]  # Thumb tip (landmark 4)
+#     wrist = hand_landmarks[0]      # Wrist (landmark 0)
     
-    thumb_x = thumb_tip.x * image_width
-    wrist_x = wrist.x * image_width
+#     thumb_x = thumb_tip.x * image_width
+#     wrist_x = wrist.x * image_width
     
-    # Right hand: thumb on LEFT side of wrist (mirrored view)
-    # Left hand: thumb on RIGHT side of wrist
-    return "Right" if thumb_x < wrist_x else "Left"
+#     # Right hand: thumb on LEFT side of wrist (mirrored view)
+#     # Left hand: thumb on RIGHT side of wrist
+#     return "Right" if thumb_x < wrist_x else "Left"
 
 # ------------------- Main loop -------------------
 
@@ -142,6 +160,9 @@ while cap.isOpened():
             if calibration_mode == True:
                 cv2.putText(image, f"Calibration Mode", org, 
                         font, font_scale, color, thickness)
+                if hand_type=="Right":
+                    cv2.putText(image, f"First Ratio {landmarks[tips[i]].y/landmarks[bases[i]].y:.2f}", indexOrg, 
+                            font, font_scale, color, thickness)
                 
                 if(hand_type == "Right"):
                     draw_landmarks(image, hand_landmarks,255,0,0)
@@ -150,12 +171,23 @@ while cap.isOpened():
                     draw_landmarks(image, hand_landmarks,0,0,255)
                     print(finger_state_left)
                     if(finger_state_left[0] == 1 and finger_state_left[1] == 1 and finger_state_left[2] == 1 and finger_state_left[3] == 1 and finger_state_left[4] == 1):
+                        save()  
                         calibration_mode = False
+                        print(ideal_ratio)
+                        print("Right Hand : " + str(hand_type == "Right"))
+                        print("Left Hand : "+ str(hand_type == "Left"))
                         print("Calibration complete. Starting main mode.")
 
 
             #---------------------- run mode ----------------------
             if calibration_mode == False:
+                for i in range(4):
+                    if(landmarks[tips[i]].y/landmarks[bases[i]].y == ideal_ratio[i][0]):
+                        finger_state_right[i+1] = 0
+                    if(landmarks[lower_tips[i]].y/landmarks[bases[i]].y == ideal_ratio[i][1]):
+                        finger_state_right[i+1] = 0
+                    if(landmarks[upper_tips[i]].y/landmarks[bases[i]].y == ideal_ratio[i][2]):
+                        finger_state_right[i+1] = 0
                 if (landmarks[tips[0]].y <landmarks[tips[1]].y or landmarks[tips[2]].y < landmarks[tips[1]].y) and finger_state_right[1] < 0.5 and finger_state_right[2] < 0.5 and finger_state_right[3] < 0.5 and finger_state_right[4] < 0.5:
                     if hand_type == "Right":
                         cv2.putText(image, f"please Straighten your hand", org, 
@@ -164,9 +196,9 @@ while cap.isOpened():
                     if hand_type == "Right":
                         cv2.putText(image, f"good to go!", org, 
                         font, font_scale, color, thickness)
-                        cv2.putText(image, f"Index Finger Y: {landmarks[tips[0]].y:.2f}", indexOrg, 
+                        cv2.putText(image, f"Index Finger Y: {ideal_ratio[0][0]:.2f}", indexOrg, 
                         font, font_scale, color, thickness)
-                        cv2.putText(image, f"Index Finger X: {landmarks[tips[0]].x:.2f}", middleOrg, 
+                        cv2.putText(image, f"Index Finger X: {landmarks[tips[i]].y/landmarks[bases[i]].y:.2f}", middleOrg, 
                         font, font_scale, color, thickness)
 
             
