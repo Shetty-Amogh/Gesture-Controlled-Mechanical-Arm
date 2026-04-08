@@ -16,11 +16,14 @@ pinkyOrg = (10, 190)
 color = (0, 0, 0)  
 font_scale = 1
 thickness = 4
+
+
 calibration_mode = True
+value_initialized = False
+good = False
 
 ideal_ratio = [[0,0,0],[0,0,0],[0,0,0],[0,0,0]]  
 
-good = False
 
 BaseOptions = python.BaseOptions
 HandLandmarker = vision.HandLandmarker
@@ -59,21 +62,17 @@ def draw_landmarks(image, landmarks, r,g,b):
         end = landmarks[connection[1]]
         cv2.line(image, (int(start.x*w), int(start.y*h)), 
                 (int(end.x*w), int(end.y*h)), (r, g, b), 2)
-
+        
 # ------------------- Initialize timestamp counter -------------------
 timestamp_ms = 0
 
-def get_hand_type(hand_landmarks, image_width, image_height):
-    # Normalize landmarks to image coordinates
-    thumb_tip = hand_landmarks[4]  # Thumb tip (landmark 4)
-    wrist = hand_landmarks[0]      # Wrist (landmark 0)
-    
-    thumb_x = thumb_tip.x * image_width
-    wrist_x = wrist.x * image_width
-    
-    # Right hand: thumb on LEFT side of wrist (mirrored view)
-    # Left hand: thumb on RIGHT side of wrist
-    return "Right" if thumb_x < wrist_x else "Left"
+def get_hand_type(results):
+    for i, hand_landmarks in enumerate(results.hand_landmarks):
+        hand_type = results.handedness[i][0].category_name 
+        if hand_type == "Right":
+            return "Right"
+        elif hand_type == "Left":
+            return "Left"
 
 # ------------------- Main loop -------------------
 
@@ -86,17 +85,6 @@ while cap.isOpened():
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
     results = detector.detect_for_video(mp_image, timestamp_ms)
     timestamp_ms += 33  
-
-   # ------------------- Drawing only Right -------------------
-
-    if results.hand_landmarks:
-        
-        for i, hand_landmarks in enumerate(results.hand_landmarks):
-            hand_type = results.handedness[i][0].category_name 
-            if hand_type == "Right":
-                draw_landmarks(image, hand_landmarks,0,255,0)
-
-    
 
     #-------------------- finger state detection --------------------
 
@@ -142,32 +130,40 @@ while cap.isOpened():
             if calibration_mode == True:
                 cv2.putText(image, f"Calibration Mode", org, 
                         font, font_scale, color, thickness)
-                
                 if(hand_type == "Right"):
                     draw_landmarks(image, hand_landmarks,255,0,0)
+                key = cv2.waitKey(1)  # Wait for a key press to proceed with calibration
+                if key == ord('c'):  # Press 'c' to calibrate
+                    for i in range(4):
+                        ideal_ratio[i][0] = landmarks[tips[i]].y/landmarks[bases[i]].y
+                        ideal_ratio[i][1] = landmarks[lower_tips[i]].y/landmarks[bases[i]].y
+                        ideal_ratio[i][2] = landmarks[upper_tips[i]].y/landmarks[bases[i]].y
+                        value_initialized = True
+                    calibration_mode = False
+                
 
-                if(hand_type == "Left"):
-                    draw_landmarks(image, hand_landmarks,0,0,255)
-                    print(finger_state_left)
-                    if(finger_state_left[0] == 1 and finger_state_left[1] == 1 and finger_state_left[2] == 1 and finger_state_left[3] == 1 and finger_state_left[4] == 1):
-                        calibration_mode = False
-                        print("Calibration complete. Starting main mode.")
 
 
             #---------------------- run mode ----------------------
-            if calibration_mode == False:
-                if (landmarks[tips[0]].y <landmarks[tips[1]].y or landmarks[tips[2]].y < landmarks[tips[1]].y) and finger_state_right[1] < 0.5 and finger_state_right[2] < 0.5 and finger_state_right[3] < 0.5 and finger_state_right[4] < 0.5:
-                    if hand_type == "Right":
-                        cv2.putText(image, f"please Straighten your hand", org, 
-                        font, font_scale, color, thickness)
-                else :
-                    if hand_type == "Right":
-                        cv2.putText(image, f"good to go!", org, 
-                        font, font_scale, color, thickness)
-                        cv2.putText(image, f"Index Finger Y: {landmarks[tips[0]].y:.2f}", indexOrg, 
-                        font, font_scale, color, thickness)
-                        cv2.putText(image, f"Index Finger X: {landmarks[tips[0]].x:.2f}", middleOrg, 
-                        font, font_scale, color, thickness)
+            if calibration_mode == False:  
+
+                if(hand_type == "Right"):
+                    draw_landmarks(image, hand_landmarks,0,255,0)
+
+                if abs((ideal_ratio[0][0] /(landmarks[tips[0]].y/landmarks[bases[0]].y)) - (ideal_ratio[0][2] /(landmarks[upper_tips[0]].y/landmarks[bases[0]].y))) < 0.008:
+                    finger_state_right[1] = 0
+
+                if hand_type == "Right":
+                    cv2.putText(image, f"good to go!", org, 
+                    font, font_scale, color, thickness)
+                    cv2.putText(image, f"Index Finger Full Ratio: {ideal_ratio[0][0] /(landmarks[tips[0]].y/landmarks[bases[0]].y):.2f}", indexOrg, 
+                    font, font_scale, color, thickness)
+                    cv2.putText(image, f"Index Finger Lower tip Ratio: {ideal_ratio[0][1] /(landmarks[lower_tips[0]].y/landmarks[bases[0]].y):.2f}", middleOrg, 
+                    font, font_scale, color, thickness)
+                    cv2.putText(image, f"Index Finger Upper tip Ratio: {ideal_ratio[0][2] /(landmarks[upper_tips[0]].y/landmarks[bases[0]].y):.2f}", ringOrg, 
+                    font, font_scale, color, thickness)
+                    cv2.putText(image, f"Index Finger state: {finger_state_right[1]:.2f}", pinkyOrg, 
+                    font, font_scale, color, thickness)
 
             
             
