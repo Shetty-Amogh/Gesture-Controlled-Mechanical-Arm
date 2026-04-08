@@ -73,6 +73,11 @@ def get_hand_type(results):
             return "Right"
         elif hand_type == "Left":
             return "Left"
+        
+#-------------------- Mapping values from ideal to 0-1 -------------------
+
+def mapping(value, ideal):
+    return((value-ideal)/(1-ideal))
 
 # ------------------- Main loop -------------------
 
@@ -98,7 +103,9 @@ while cap.isOpened():
             if hand_type == "Right":
                 right_thumb_extended = 1 if landmarks[4].x < landmarks[3].x else 0
             else: 
-                left_thumb_extended = 1 if landmarks[4].x > landmarks[3].x else 0    
+                left_thumb_extended = 1 if landmarks[4].x > landmarks[3].x else 0   
+
+            mapped_finger_state_right = [0, 0, 0, 0, 0] 
 
             # Finger detection
             if hand_type == "Right":
@@ -150,8 +157,15 @@ while cap.isOpened():
                 if(hand_type == "Right"):
                     draw_landmarks(image, hand_landmarks,0,255,0)
 
-                if abs((ideal_ratio[0][0] /(landmarks[tips[0]].y/landmarks[bases[0]].y)) - (ideal_ratio[0][2] /(landmarks[upper_tips[0]].y/landmarks[bases[0]].y))) < 0.008:
-                    finger_state_right[1] = 0
+               
+                
+                for i in range(4):
+                    if abs((ideal_ratio[i][0] /(landmarks[tips[i]].y/landmarks[bases[i]].y)) - (ideal_ratio[i][2] /(landmarks[upper_tips[i]].y/landmarks[bases[i]].y))) < 0.008:
+                        mapped_finger_state_right[i] = 0
+
+
+                    if finger_state_right[i+1] != 0 and finger_state_right[i+1] != 1:
+                        finger_state_right[i+1] = abs(mapping(finger_state_right[i+1], ideal_ratio[i][0]))
 
                 if hand_type == "Right":
                     cv2.putText(image, f"good to go!", org, 
