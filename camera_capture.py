@@ -1,11 +1,15 @@
 import cv2
 import mediapipe as mp
 import numpy as np
+import serial
 import time
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 # ---------------- MediaPipe setup ----------------
+
+ser = serial.Serial('/dev/cu.usbmodemB43A45B988EC2', 9600, timeout=1)
+time.sleep(2)
 
 font = cv2.FONT_HERSHEY_SIMPLEX
 org = (10, 30)
@@ -153,6 +157,9 @@ while cap.isOpened():
 
             #---------------------- run mode ----------------------
             if calibration_mode == False:  
+                key = cv2.waitKey(1)
+                if key == ord('r'):
+                    calibration_mode = True
 
                 if(hand_type == "Right"):
                     draw_landmarks(image, hand_landmarks,0,255,0)
@@ -170,15 +177,16 @@ while cap.isOpened():
                 if hand_type == "Right":
                     cv2.putText(image, f"good to go!", org, 
                     font, font_scale, color, thickness)
-                    cv2.putText(image, f"Index Finger Full Ratio: {ideal_ratio[0][0] /(landmarks[tips[0]].y/landmarks[bases[0]].y):.2f}", indexOrg, 
+                    cv2.putText(image, f"Index Finger state: {finger_state_right[1]:.2f}", indexOrg, 
                     font, font_scale, color, thickness)
-                    cv2.putText(image, f"Index Finger Lower tip Ratio: {ideal_ratio[0][1] /(landmarks[lower_tips[0]].y/landmarks[bases[0]].y):.2f}", middleOrg, 
+                    cv2.putText(image, f"Middle Finger state: {finger_state_right[2]:.2f}", middleOrg, 
                     font, font_scale, color, thickness)
-                    cv2.putText(image, f"Index Finger Upper tip Ratio: {ideal_ratio[0][2] /(landmarks[upper_tips[0]].y/landmarks[bases[0]].y):.2f}", ringOrg, 
+                    cv2.putText(image, f"Ring Finger state: {finger_state_right[3]:.2f}", ringOrg, 
                     font, font_scale, color, thickness)
-                    cv2.putText(image, f"Index Finger state: {finger_state_right[1]:.2f}", pinkyOrg, 
+                    cv2.putText(image, f"Pinky Finger state: {finger_state_right[4]:.2f}", pinkyOrg, 
                     font, font_scale, color, thickness)
-
+                    ser.write(f"{finger_state_right[1]:.2f},{finger_state_right[2]:.2f},{finger_state_right[3]:.2f},{finger_state_right[4]:.2f}\n".encode())
+            
             
             
 
