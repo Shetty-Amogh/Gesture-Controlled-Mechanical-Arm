@@ -8,7 +8,7 @@ from mediapipe.tasks.python import vision
 
 # ---------------- MediaPipe setup ----------------
 
-ser = serial.Serial('/dev/cu.usbmodemB43A45B988EC2', 9600, timeout=1)
+ser = serial.Serial('/dev/cu.usbmodemxxxx', 9600, timeout=1)
 time.sleep(2)
 
 font = cv2.FONT_HERSHEY_SIMPLEX
