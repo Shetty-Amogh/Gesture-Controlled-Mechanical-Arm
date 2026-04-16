@@ -185,7 +185,7 @@ while cap.isOpened():
                     font, font_scale, color, thickness)
                     cv2.putText(image, f"Pinky Finger state: {finger_state_right[4]:.2f}", pinkyOrg, 
                     font, font_scale, color, thickness)
-                    ser.write(f"{finger_state_right[1]:.2f},{finger_state_right[2]:.2f},{finger_state_right[3]:.2f},{finger_state_right[4]:.2f}\n".encode())
+                    ser.write(f"{finger_state_right[0]:.2f},{finger_state_right[1]:.2f},{finger_state_right[2]:.2f},{finger_state_right[3]:.2f},{finger_state_right[4]:.2f}!\n".encode())
             
             
             
