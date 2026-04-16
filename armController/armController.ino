@@ -1,6 +1,7 @@
 #include <string.h>
 
-float values[10];      // Float array for your data
+float values[5];      // Float array for your data
+float prev_values[] = {0,0,0,0,0};
 char buffer[100];      // Serial buffer
 int valueCount = 0;
 
@@ -10,27 +11,35 @@ void setup() {
 
 void loop() {
   if (Serial.available()) {
-    int len = Serial.readBytesUntil('\n', buffer, sizeof(buffer)-1);
+    int len = Serial.readBytesUntil('!', buffer, sizeof(buffer)-1);
     buffer[len] = '\0'; 
 
     char *ptr = strtok(buffer, ",");
     valueCount = 0;
 
-    while (ptr != NULL && valueCount < 10) {
-      values[valueCount] = atof(ptr);  // Convert string to float
+    while (ptr != NULL && valueCount < 5) {
+      values[valueCount] = atof(ptr);
       valueCount++;
       ptr = strtok(NULL, ",");
     }
+    Serial.println(valueCount);
+    if(valueCount == 5){
+      for (int i = 0; i < valueCount; i++) {
+        Serial.println(values[1]);
+        Serial.println(prev_values[1]);
+        if(values[1] < prev_values[1]){
+          //finger closing code 
+          Serial.println("Finger Closing ");
+        }
+        else if(values[1] > prev_values[1]){
+          //finger opening code
+          Serial.println("Finger Opening");
+        }
 
-    Serial.print("Received ");
-    Serial.print(valueCount);
-    Serial.println(" float values:");
-    
-    for (int i = 0; i < valueCount; i++) {
-      Serial.print("values[");
-      Serial.print(i);
-      Serial.print("] = ");
-      Serial.println(values[i], 2);  // 2 decimal places
+        prev_values[i] = values[i];
+      }
     }
+
+    
   }
 }
